@@ -242,6 +242,7 @@
   <div class="desc">Organize by area. Colors show up as tags on each item.</div>
   <div id="catList"></div>
   <button class="btn ghost block" id="btnAddCat">+ Add category</button>
+  <button class="btn ghost block" id="btnShareList">📤 Share list (WhatsApp / Telegram)</button>
   <div class="field" style="margin-top:20px">
     <label>Backup — you never lose anything</label>
     <div style="display:flex;gap:8px">
@@ -252,6 +253,18 @@
     <div class="hint">Your data always lives on this device even if the cloud is unreachable. Export gives you a portable backup file.</div>
   </div>
   <button class="btn danger block" id="btnClearDone" style="margin-top:14px">Clear completed to-dos</button>
+</div>
+
+<!-- Share sheet -->
+<div class="sheet" id="shareSheet">
+  <div class="grabber"></div>
+  <h2>Share</h2>
+  <div class="desc" id="sharePreview" style="white-space:pre-wrap;max-height:32vh;overflow:auto;border:1px solid var(--line);border-radius:11px;padding:10px;color:var(--ink)"></div>
+  <div style="display:flex;gap:8px">
+    <button class="btn primary" id="shWa" style="flex:1;background:#25D366">WhatsApp</button>
+    <button class="btn primary" id="shTg" style="flex:1;background:#229ED9">Telegram</button>
+    <button class="btn ghost" id="shCopy" style="flex:1">Copy</button>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -434,6 +447,7 @@
         <div class="meta">${catTag}${pill}${duePill}</div>
       </div>
       <div class="row-actions">
+        <button data-act="share" title="Share">📤</button>
         <button data-act="menu" title="Options">⋯</button>
         <button data-act="del" title="Delete">✕</button>
       </div>
@@ -516,6 +530,7 @@
     const act=e.target.closest("[data-act]")&&e.target.closest("[data-act]").dataset.act;
     if(act==="toggle") toggleDone(id);
     else if(act==="del") delItem(id);
+    else if(act==="share"){ const it=state.items.find(i=>i.id===id); if(it) openShare(itemToText(it)); }
     else if(act==="menu") openItemMenu(id);
   });
   $("#listRoot").addEventListener("blur",e=>{
@@ -537,6 +552,29 @@
     // Simpler: rotate category, then show toast; provide priority cycle & due via dedicated controls
     it.cat=names[ni]; touch(it); save(); schedulePush(); render(); toast("Category → "+it.cat);
   }
+
+  // ---------- share (WhatsApp / Telegram) ----------
+  let shareBuf="";
+  function itemToText(it){
+    let s=(it.kind==="idea"?"💡 ":(it.done?"✅ ":"◻️ "))+it.text;
+    const bits=[];
+    if(it.cat && it.cat!=="Inbox") bits.push(it.cat);
+    if(it.prio) bits.push("!".repeat(it.prio));
+    if(it.due) bits.push("due "+it.due);
+    if(bits.length) s+="\n   ("+bits.join(" · ")+")";
+    return s;
+  }
+  function listToText(){
+    const items=visibleItems();
+    const d=new Date();
+    return "⚡ Agentic Social — List ("+d.toLocaleDateString(undefined,{day:"numeric",month:"short"})+")\n\n"+
+      (items.length? items.map(itemToText).join("\n") : "(empty)");
+  }
+  function openShare(t){ shareBuf=t; $("#sharePreview").textContent=t; openSheet("#shareSheet"); }
+  $("#shWa").addEventListener("click",()=>window.open("https://wa.me/?text="+encodeURIComponent(shareBuf),"_blank"));
+  $("#shTg").addEventListener("click",()=>window.open("https://t.me/share/url?url=%20&text="+encodeURIComponent(shareBuf),"_blank"));
+  $("#shCopy").addEventListener("click",()=>copy(shareBuf,"Copied"));
+  $("#btnShareList").addEventListener("click",()=>{ closeSheets(); setTimeout(()=>openShare(listToText()),120); });
 
   // header buttons
   $("#btnSync").addEventListener("click",()=>{ renderSyncSheet(); openSheet("#syncSheet"); });
